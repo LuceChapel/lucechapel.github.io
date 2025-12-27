@@ -1,4 +1,4 @@
-// 這是您的課程資料庫
+// 課程資料庫
 const courses = [
     {id: "0981", name: "微積分甲〈二〉", teacher: "潘青岳", type: "compulsory", credit: 3, time: "二3,4 四6,7"},
     {id: "0982", name: "Ｃ＋＋程式設計", teacher: "焦信達", type: "compulsory", credit: 3, time: "三6,7,8 四5"},
