@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資工系排課系統 (含課程代號)</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .main-area {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .toolbar {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-save { background-color: #4CAF50; color: white; }
+        .btn-load { background-color: #2196F3; color: white; }
+        .btn-clear { background-color: #f44336; color: white; }
+        
+        /* 學分顯示器 */
+        .credit-counter {
+            margin-left: auto;
+            background-color: #3f51b5;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .credit-badge {
+            background: white;
+            color: #3f51b5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        /* 課表區域 */
+        .schedule-container {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            overflow: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 2px;
+            text-align: center;
+            font-size: 13px;
+            color: #555;
+            height: 50px;
+            vertical-align: middle;
+        }
+
+        th {
+            background-color: #fff;
+            font-weight: bold;
+            color: #444;
+            border-bottom: 2px solid #3f51b5;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 10px;
+        }
+
+        .time-col {
+            background-color: #f8f9fa;
+            width: 80px;
+            font-size: 12px;
+            color: #666;
+        }
+        .time-col span {
+            display: block;
+            font-size: 14px;
+            font-weight: bold;
+            color: #3f51b5;
+        }
+
+        .drop-zone {
+            background-color: #fff;
+            transition: background-color 0.2s;
+            position: relative;
+            cursor: cell;
+        }
+        .drop-zone:hover { background-color: #fafafa; }
+        .drop-zone.drag-over { background-color: #e8eaf6; border: 2px dashed #3f51b5; }
+
+        .course-pool {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            min-width: 280px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        .course-list {
+            overflow-y: auto;
+            flex-grow: 1;
+            padding-right: 5px;
+        }
+
+        .course-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            line-height: 1.4;
+            position: relative;
+            transition: transform 0.1s;
+        }
+        .course-item:hover { transform: translateY(-2px); }
+        .course-item:active { transform: translateY(0); }
+
+        /* 課程代號標籤樣式 */
+        .id-badge {
+            display: inline-block;
+            background-color: rgba(0,0,0,0.2);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-right: 4px;
+            font-family: monospace;
+        }
+
+        .type-compulsory { background-color: #2196F3; border-left: 4px solid #0d47a1; } 
+        .type-required { background-color: #9C27B0; border-left: 4px solid #4a148c; }   
+        .type-elective { background-color: #FF9800; border-left: 4px solid #e65100; }   
+        .type-custom { background-color: #607d8b; border-left: 4px solid #37474f; }
+
+        td .course-item {
+            margin: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-radius: 0;
+            border-left: none;
+            cursor: pointer;
+            box-shadow: none;
+            padding: 2px;
+        }
+        td .course-item:hover { opacity: 0.8; transform: none; }
+        td .course-item:hover::after {
+            content: "×";
+            position: absolute;
+            top: 0; right: 2px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .legend { font-size: 12px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap;}
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 3px;}
+    </style>
+</head>
+<body>
+
+    <div class="main-area">
+        <div class="toolbar">
+            <h3 style="margin: 0 15px 0 0;">資工系課表</h3>
+            <button class="btn-save" onclick="downloadJSON()">📥 下載 JSON</button>
+            <button class="btn-load" onclick="document.getElementById('fileInput').click()">📤 匯入 JSON</button>
+            <button class="btn-clear" onclick="clearSchedule()">🗑️ 清空</button>
+            <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadJSON(this)">
+            
+            <div class="credit-counter">
+                總學分: <span class="credit-badge" id="totalCredits">0</span>
+            </div>
+        </div>
+
+        <div class="schedule-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>節次</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th>
+                    </tr>
+                </thead>
+                <tbody id="schedule-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="course-pool">
+        <h3 style="margin-top: 0;">課程列表</h3>
+        <div class="legend">
+            <span><span class="dot" style="background:#2196F3"></span>必修</span>
+            <span><span class="dot" style="background:#9C27B0"></span>必選</span>
+            <span><span class="dot" style="background:#FF9800"></span>選修</span>
+            <span><span class="dot" style="background:#607d8b"></span>自訂</span>
+        </div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜尋代號、課名或老師..." onkeyup="filterCourses()">
+        </div>
+        <div class="course-list" id="courseList"></div>
+    </div>
+
+    <script src="courses.js"></script>
+
+    <script>
+        const courseListEl = document.getElementById('courseList');
+        const tbody = document.getElementById('schedule-body');
+        const timeSlots = [
+            { id: "0", time: "07:10" }, { id: "1", time: "08:10" }, { id: "2", time: "09:10" },
+            { id: "3", time: "10:20" }, { id: "4", time: "11:20" }, { id: "4.5", time: "12:10" },
+            { id: "5", time: "13:10" }, { id: "6", time: "14:10" }, { id: "7", time: "15:20" },
+            { id: "8", time: "16:20" }, { id: "9", time: "17:20" }, { id: "10", time: "18:20" },
+            { id: "11", time: "19:20" }, { id: "12", time: "20:20" }, { id: "13", time: "21:20" }
+        ];
+
+        // --- 初始化列表 ---
+        function renderCourses(list) {
+            courseListEl.innerHTML = "";
+            if(typeof list === 'undefined'){
+                courseListEl.innerHTML = "<div style='color:red; padding:10px;'>找不到 courses.js</div>";
+                return;
+            }
+
+            list.forEach(c => {
+                const div = document.createElement('div');
+                div.className = `course-item type-${c.type}`;
+                div.draggable = true;
+                div.id = `c_${c.id}`;
+                
+                // *** 這裡修改了顯示格式，加入課程代號 [c.id] ***
+                div.innerHTML = `
+                    <div>
+                        <span class="id-badge">${c.id}</span>
+                        <b>${c.name}</b> (${c.credit}學分)
+                    </div>
+                    <div style="margin-top:2px;">${c.teacher}</div>
+                    <span style="opacity:0.8; font-size:11px">🕒 ${c.time}</span>
+                `;
+                div.title = `代號: ${c.id}\n點擊以自動加入課表`;
+                
+                div.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify(c));
+                    div.classList.add('dragging');
+                });
+                div.addEventListener('dragend', () => div.classList.remove('dragging'));
+                div.addEventListener('click', () => autoAddCourse(c));
+
+                courseListEl.appendChild(div);
+            });
+        }
+        renderCourses(courses);
+
+        // 生成課表格子
+        timeSlots.forEach(slot => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="time-col"><span>${slot.id}</span>${slot.time}</td>`;
+            for (let i = 1; i <= 7; i++) {
+                const td = document.createElement('td');
+                td.className = 'drop-zone';
+                td.dataset.day = i;
+                td.dataset.slot = slot.id;
+                
+                td.addEventListener('dragover', e => { e.preventDefault(); if(!td.hasChildNodes()) td.classList.add('drag-over'); });
+                td.addEventListener('dragleave', () => td.classList.remove('drag-over'));
+                td.addEventListener('drop', handleDrop);
+                td.addEventListener('click', () => handleManualAdd(td));
+                tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+        });
+
+        // --- 搜尋功能 (包含代號) ---
+        function filterCourses() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            
+            // *** 這裡加入了 c.id 的搜尋邏輯 ***
+            const filtered = courses.filter(c => 
+                c.name.toLowerCase().includes(input) || 
+                c.teacher.toLowerCase().includes(input) || 
+                c.id.toLowerCase().includes(input) // 支援代號搜尋
+            );
+            renderCourses(filtered);
+        }
+
+        // --- 核心邏輯 ---
+
+        function calculateTotalCredits() {
+            const uniqueCourses = new Set();
+            let total = 0;
+            document.querySelectorAll('.drop-zone .course-item').forEach(item => {
+                const data = JSON.parse(item.dataset.raw);
+                if (!uniqueCourses.has(data.id)) {
+                    uniqueCourses.add(data.id);
+                    total += parseInt(data.credit || 0);
+                }
+            });
+            document.getElementById('totalCredits').innerText = total;
+        }
+
+        // 手動輸入
+        function handleManualAdd(cell) {
+            if (cell.hasChildNodes()) return;
+            const name = prompt("請輸入課程名稱：");
+            if (name) {
+                const teacher = prompt("請輸入老師或備註 (選填)：") || "";
+                const creditStr = prompt("請輸入此課程學分 (預設0)：") || "0";
+                const credit = parseInt(creditStr);
+                const customCourse = {
+                    id: "custom_" + Date.now(),
+                    name: name,
+                    teacher: teacher,
+                    type: "custom",
+                    time: "手動",
+                    credit: isNaN(credit) ? 0 : credit
+                };
+                addCourseToCell(cell, customCourse);
+                autoSave();
+            }
+        }
+
+        // 自動排課
+        const dayMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 7 };
+        function autoAddCourse(course) {
+            if (!course.time || course.time === "另訂") { alert("此課程時間未定"); return; }
+            const targets = parseTimeString(course.time);
+            if (targets.length === 0) { alert("無法解析時間"); return; }
+
+            let conflict = false;
+            let conflictMsg = "";
+            targets.forEach(t => {
+                const cell = document.querySelector(`.drop-zone[data-day="${t.day}"][data-slot="${t.slot}"]`);
+                if (cell && cell.hasChildNodes()) {
+                    conflict = true;
+                    const existingData = JSON.parse(cell.querySelector('.course-item').dataset.raw);
+                    conflictMsg = `星期${getKeyByValue(dayMap, t.day)} 第${t.slot}節 (${existingData.name})`;
+                }
+            });
+
+            if (conflict) { alert(`衝突警告：\n${conflictMsg}`); return; }
+
+            targets.forEach(t => {
+                const cell = document.querySelector(`.drop-zone[data-day="${t.day}"][data-slot="${t.slot}"]`);
+                if (cell) addCourseToCell(cell, course);
+            });
+            autoSave();
+        }
+
+        function parseTimeString(timeStr) {
+            const parts = timeStr.split(' '); 
+            let results = [];
+            parts.forEach(part => {
+                if(!part) return;
+                const dayChar = part.charAt(0);
+                const dayNum = dayMap[dayChar];
+                if (dayNum) {
+                    const slots = part.substring(1).split(',');
+                    slots.forEach(s => results.push({ day: dayNum, slot: s.trim() }));
+                }
+            });
+            return results;
+        }
+
+        function getKeyByValue(object, value) {
+            return Object.keys(object).find(key => object[key] === value);
+        }
+
+        // 拖曳與放置
+        function handleDrop(e) {
+            e.preventDefault();
+            const zone = e.currentTarget;
+            zone.classList.remove('drag-over');
+            if (zone.hasChildNodes()) { alert("已有課程！"); return; }
+
+            const dataStr = e.dataTransfer.getData('text/plain');
+            if (dataStr) {
+                const courseData = JSON.parse(dataStr);
+                addCourseToCell(zone, courseData);
+                autoSave(); 
+            }
+        }
+
+        function addCourseToCell(cell, courseData) {
+            const div = document.createElement('div');
+            div.className = `course-item type-${courseData.type}`;
+            
+            // 課表內顯示 (這裡也稍微改一下，但因為空間小，只顯示名字和老師)
+            div.innerHTML = `<div style="font-weight:bold; font-size:12px;">${courseData.name}</div><div style="font-size:10px;">${courseData.teacher}</div>`;
+            div.title = `[${courseData.id}] ${courseData.name}\n點擊以移除此課程 (連動刪除)`;
+            div.dataset.raw = JSON.stringify(courseData);
+
+            div.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                if(confirm(`確定要移除「${courseData.name}」嗎？`)) {
+                    removeAllInstances(courseData.id);
+                }
+            });
+            
+            cell.appendChild(div);
+            calculateTotalCredits();
+        }
+
+        function removeAllInstances(targetId) {
+            document.querySelectorAll('.drop-zone .course-item').forEach(item => {
+                const data = JSON.parse(item.dataset.raw);
+                if (data.id === targetId) item.parentElement.innerHTML = '';
+            });
+            autoSave();
+            calculateTotalCredits();
+        }
+
+        // 存檔/載入
+        function downloadJSON() {
+            const schedule = [];
+            document.querySelectorAll('.drop-zone').forEach(cell => {
+                if(cell.hasChildNodes()) {
+                    schedule.push({
+                        day: cell.dataset.day,
+                        slot: cell.dataset.slot,
+                        course: JSON.parse(cell.querySelector('.course-item').dataset.raw)
+                    });
+                }
+            });
+            if(schedule.length === 0) { alert("課表是空的"); return; }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(schedule, null, 2));
+            const dl = document.createElement('a'); dl.href = dataStr; dl.download = "schedule.json";
+            document.body.appendChild(dl); dl.click(); dl.remove();
+        }
+
+        function loadJSON(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    applySchedule(JSON.parse(e.target.result));
+                    alert("匯入成功！");
+                } catch(err) { alert("格式錯誤"); }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        function applySchedule(data) {
+            clearSchedule(false);
+            data.forEach(item => {
+                const cell = document.querySelector(`.drop-zone[data-day="${item.day}"][data-slot="${item.slot}"]`);
+                if(cell) addCourseToCell(cell, item.course);
+            });
+            autoSave();
+        }
+
+        function clearSchedule(shouldSave=true) {
+            document.querySelectorAll('.drop-zone').forEach(cell => cell.innerHTML = '');
+            calculateTotalCredits();
+            if(shouldSave) autoSave();
+        }
+
+        function autoSave() {
+            const schedule = [];
+            document.querySelectorAll('.drop-zone').forEach(cell => {
+                if(cell.hasChildNodes()) {
+                    schedule.push({
+                        day: cell.dataset.day,
+                        slot: cell.dataset.slot,
+                        course: JSON.parse(cell.querySelector('.course-item').dataset.raw)
+                    });
+                }
+            });
+            localStorage.setItem('myCS_Schedule_Credit', JSON.stringify(schedule));
+            calculateTotalCredits();
+        }
+
+        window.onload = function() {
+            const saved = localStorage.getItem('myCS_Schedule_Credit');
+            if(saved) applySchedule(JSON.parse(saved));
+        };
+    </script>
+</body>
+</html>
